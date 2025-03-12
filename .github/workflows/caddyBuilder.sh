@@ -1,99 +1,73 @@
 #!/bin/bash
 
+set -e  # Прекращаем выполнение при ошибках
+
 # Массив контейнеров
 containers=(
   "library/caddy"  # Основной контейнер caddy
   "metgen/caddy-cf-tf"  # Кастомный контейнер caddy
 )
 
-# Ассоциативный массив для версий
-declare -A imageVersions
+declare -A imageVersions  # Ассоциативный массив для версий
 
-# Получаем версии каждого контейнера
-for container in "${containers[@]}"; do
-  echo "Calling Docker Hub to get $container Versions..."
+# Функция для получения версий
+get_versions() {
+  local container=$1
+  echo "Fetching versions for $container from Docker Hub..."
+  
+  local versions=()
+  local request=$(curl -s "https://hub.docker.com/v2/repositories/$container/tags")
 
-  # Инициализируем переменные для получения версий
-  versions=()
-
-  # Запрос на получение тегов с Docker Hub
-  request=$(curl -s "https://hub.docker.com/v2/repositories/$container/tags")
-
-  # Извлекаем версии с помощью jq
   while [[ -n "$request" ]]; do
-    # Используем jq для фильтрации тегов, которые соответствуют формату x.y.z
-    versions+=( $(echo "$request" | jq -r '.results[].name' | grep -E '^\d+\.\d+\.\d+$') )
+    versions+=( $(echo "$request" | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$') )
 
-    # Проверка на наличие следующей страницы
     next_url=$(echo "$request" | jq -r '.next')
-    if [[ "$next_url" != "null" ]]; then
-      request=$(curl -s "$next_url")
-    else
-      break
-    fi
+    [[ "$next_url" == "null" ]] && break
+    request=$(curl -s "$next_url")
   done
 
-  # Сохраняем версии в массив
-  imageVersions[$container]=("${versions[@]}")
+  imageVersions[$container]="${versions[0]}"
+  echo "Latest version for $container: ${imageVersions[$container]}"
+}
 
-  # Выводим найденные версии
-  echo Found the following $container Versions:"
-  printf "%s\n" "${imageVersions[$container]}"
+# Получаем версии
+for container in "${containers[@]}"; do
+  get_versions "$container"
 done
 
-# Получаем последние версии
-latestOfficialVersion="${imageVersions["library/caddy"][0]}"
-latestmetgenVersion="${imageVersions["metgen/caddy-cf-tf"][0]}"
-
-echo "Latest Offical version: $latestOfficialVersion"
-echo "Latest metgen version: $latestmetgenVersion"
+latestOfficialVersion="${imageVersions["library/caddy"]}"
+latestCustomVersion="${imageVersions["metgen/caddy-cf-tf"]}"
 
 # Сравниваем версии
-if [[ "${imageVersions["library/caddy"]}" =~ ${imageVersions["metgen/caddy-cf-tf"][0]} ]]; then
-  echo "Docker image metgen/caddy-cf-tf:${imageVersions["metgen/caddy-cf-tf"][0]} matches image library/caddy:${imageVersions["library/caddy"][0]}"
+if [[ "$latestCustomVersion" == "$latestOfficialVersion" ]]; then
+  echo "metgen/caddy-cf-tf:$latestCustomVersion is up to date with library/caddy:$latestOfficialVersion"
 else
-  echo "Docker image metgen/caddy-cf-tf:${imageVersions["metgen/caddy-cf-tf"][0]} version behind image library/caddy:${imageVersions["library/caddy"][0]}"
+  echo "Updating metgen/caddy-cf-tf from $latestCustomVersion to $latestOfficialVersion"
 
-  # Читаем Dockerfile и заменяем старую версию на новую
+  # Обновляем Dockerfile
   dockerfilePath="./Dockerfile"
   if [[ -f "$dockerfilePath" ]]; then
-    oldVersion="${imageVersions["metgen/caddy-cf-tf"][0]}"
-    newVersion="$latestOfficialVersion"
-
-    echo "Обновление версии в Dockerfile: $oldVersion -> $newVersion"
-
-    # Заменяем старую версию на новую
-    sed -i "s/$oldVersion/$newVersion/g" "$dockerfilePath"
+    sed -i "s/$latestCustomVersion/$latestOfficialVersion/g" "$dockerfilePath"
+    echo "Dockerfile updated: $latestCustomVersion -> $latestOfficialVersion"
   fi
+
+  echo "***************************************"
+  echo "Performing Git Operations..."
+
+  git config user.email "metalnikov.gennadiy@gmail.com"
+  git config user.name "metgen"
+
+  git add .
+  if git status --porcelain | grep -q .; then
+    echo "Changes detected, committing..."
+    git commit -m "Updated Caddy to $latestOfficialVersion [skip ci]"
+    git tag -a "v$latestOfficialVersion" -m "Caddy release v$latestOfficialVersion"
+    git push -q origin HEAD:main
+    git push --tags -q origin HEAD:main
+  else
+    echo "No changes detected, skipping Git push."
+  fi
+
+  echo "Git Operations Complete..."
+  echo "***************************************"
 fi
-
-echo ""
-echo "***************************************"
-echo "Performing Git Operations..."
-
-# Настройки Git
-git config user.email "metalnikov.gennadiy@gmail.com"
-git config user.name "metgen"
-
-# Стадирование изменений
-echo "Staging all changed files..."
-git add .
-
-# Проверка наличия изменений
-if git diff --quiet; then
-  echo "No changes have been made. Skipping Git Push."
-else
-  echo "Committing changes..."
-  git commit -m "GitHub Actions commit: Updated caddy to $latestOfficialVersion [skip ci]"
-
-  echo "Applying git tag v$latestOfficialVersion..."
-  git tag -a "v$latestOfficialVersion" -m "Caddy release v$latestOfficialVersion"
-
-  echo "Pushing changes to main repository.."
-  git push -q origin HEAD:main
-  git push --tags -q origin HEAD:main
-fi
-
-echo "Git Operations Complete..."
-echo "***************************************"
-
