@@ -14,15 +14,27 @@ declare -A imageVersions  # Ассоциативный массив для ве�
 get_versions() {
   local container=$1
   echo "Fetching versions for $container from Docker Hub..."
-  
+
   local versions=()
   local request=$(curl -s "https://hub.docker.com/v2/repositories/$container/tags")
 
-  while [[ -n "$request" ]]; do
-    versions+=( $(echo "$request" | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$') )
+  if [[ -z "$request" || "$request" == "null" ]]; then
+    echo "Error: No response from Docker Hub. Check network or rate limits."
+    return
+  fi
+
+  while [[ -n "$request" && "$request" != "null" ]]; do
+    local new_versions=$(echo "$request" | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$')
+    
+    if [[ -z "$new_versions" ]]; then
+      echo "No valid version tags found for $container."
+      return
+    fi
+    
+    versions+=($new_versions)
 
     next_url=$(echo "$request" | jq -r '.next')
-    [[ "$next_url" == "null" ]] && break
+    [[ -z "$next_url" || "$next_url" == "null" ]] && break
     request=$(curl -s "$next_url")
   done
 
