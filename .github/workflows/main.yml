@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_CONTAINER_NAME: caddy-cf-tf
+  DOCKER_CONTAINER_NAME: caddy-plus
   DOCKER_TARGET_PLATFORM: linux/amd64, linux/arm64, linux/arm/v8, linux/arm/v7
 
 jobs:

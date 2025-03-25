@@ -5,7 +5,7 @@ set -e  # Прекращаем выполнение при ошибках
 # Массив контейнеров
 containers=(
   "library/caddy"  # Основной контейнер caddy
-  "metgen/caddy-cf-tf"  # Кастомный контейнер caddy
+  "metgen/caddy-plus"  # Кастомный контейнер caddy
 )
 
 declare -A imageVersions  # Ассоциативный массив для версий
@@ -48,13 +48,13 @@ for container in "${containers[@]}"; do
 done
 
 latestOfficialVersion="${imageVersions["library/caddy"]}"
-latestCustomVersion="${imageVersions["metgen/caddy-cf-tf"]}"
+latestCustomVersion="${imageVersions["metgen/caddy-plus"]}"
 
 # Сравниваем версии
 if [[ "$latestCustomVersion" == "$latestOfficialVersion" ]]; then
-  echo "metgen/caddy-cf-tf:$latestCustomVersion is up to date with library/caddy:$latestOfficialVersion"
+  echo "metgen/caddy-plus:$latestCustomVersion is up to date with library/caddy:$latestOfficialVersion"
 else
-  echo "Updating metgen/caddy-cf-tf from $latestCustomVersion to $latestOfficialVersion"
+  echo "Updating metgen/caddy-plus from $latestCustomVersion to $latestOfficialVersion"
 
   # Обновляем Dockerfile
   dockerfilePath="./Dockerfile"
