@@ -2,7 +2,7 @@
 [![caddy on DockerHub][dockerhub-image]][dockerhub-url]
 [![Docker Build][gh-actions-image]][gh-actions-url]
 
-# caddy-cloudflare-transform
+# caddy-plus
 
 The image includes 3 modules for Caddy: cloudflare, transform-encoder and caddy-exec.
 
