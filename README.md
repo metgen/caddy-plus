@@ -4,7 +4,11 @@
 
 # caddy-plus
 
-The image includes 3 modules for Caddy: cloudflare, transform-encoder and caddy-exec.
+The image includes 4 modules for Caddy:
+- cloudflare
+- transform-encoder
+- caddy-exec
+- caddy-security
 
 The image is designed to obtain a TLS certificate using dns challenge api cloudflare, and using a log converter based on a desired pattern.
 
