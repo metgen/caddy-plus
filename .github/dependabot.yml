@@ -1,16 +1,26 @@
 version: 2
 updates:
-  # Maintain dependencies for GitHub Actions
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    assignees:
-      - "metgen"
-  # Check for docker image updates
+    schedule: { interval: "weekly" }
+    assignees: ["metgen"]
+    labels: ["dependencies"]
+
+  # Docker base image
   - package-ecosystem: "docker"
     directory: "/"
-    schedule:
-      interval: "daily"
-    assignees:
-      - "metgen"
+    schedule: { interval: "daily" }
+    assignees: ["metgen"]
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(deps): bump caddy"
+
+  # Go modules (плагины)
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule: { interval: "daily" }
+    assignees: ["metgen"]
+    labels: ["dependencies", "plugins"]
+    commit-message:
+      prefix: "chore(deps): bump plugins"
